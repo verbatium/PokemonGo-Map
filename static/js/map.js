@@ -1730,7 +1730,7 @@ function processSpawnpoints (i, item) {
 
   if (id in mapData.spawnpoints) {
     // In the future: maybe show how long till spawnpoint activates?
-    marker = mapData.spawnpoints[id].marker;
+    var marker = mapData.spawnpoints[id].marker;
     if(marker)
     marker.setOptions({
       fillColor: getSpawnPointColor(item['minute'],item['second'])
