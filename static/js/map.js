@@ -1191,6 +1191,31 @@ function pokestopLabel (expireTime, latitude, longitude) {
   return str
 }
 
+function spawnPointLabel(spawnpoint_id, minute, second , latitude, longitude) {
+    var spawnTime = SubtractSeconds(minute*60+second, 15*60);
+    var  spawnSecond = addZero(spawnTime % 60);
+    var  spawnMinute = addZero(Math.floor(spawnTime / 60));
+    minute = addZero(minute);
+    second = addZero(second);
+  str = `
+      <div>
+        <b>Spawn point: ${spawnpoint_id}</b>
+      </div>
+      <div>
+        Active : ${spawnMinute}:${spawnSecond} - ${minute}:${second}
+      </div>
+      <div>
+        Location: ${latitude.toFixed(6)}, ${longitude.toFixed(7)}
+      </div>      
+      <div>
+        <a href='https://www.google.com/maps/dir/Current+Location/${latitude},${longitude}?hl=en' target='_blank' title='View in Maps'>Get directions</a>
+      </div>`
+  var str
+
+
+  return str
+}
+
 function getGoogleSprite (index, sprite, displayHeight) {
   displayHeight = Math.max(displayHeight, 3)
   var scale = displayHeight / sprite.iconHeight
@@ -1382,19 +1407,69 @@ function setupScannedMarker (item) {
   return marker
 }
 
+function addZero(i) {
+    if (i < 10) {
+        i = "0" + i;
+    }
+    return i;
+}
+
+function getSpawnPointColor(minute, second)
+{
+    var spawnPeriod = 15 * 60;
+    var deSpawnTime =  minute * 60 + second;
+    var spawnTime = SubtractSeconds(deSpawnTime, spawnPeriod);
+    var n = new Date();
+    var secondsNow = n.getMinutes() * 60 + n.getSeconds();
+    if (aBetweenBandC(deSpawnTime, SubtractSeconds(secondsNow,spawnTime), secondsNow))
+        return 'red';
+    if (aBetweenBandC(secondsNow, spawnTime, deSpawnTime))
+        return 'green';
+    if (aBetweenBandC(spawnTime, secondsNow, SubtractSeconds(secondsNow,-spawnTime)))
+        return 'yellow';
+    return 'blue';
+}
+
+function SubtractSeconds(secondA, secondB)
+{
+    return (3600 +  secondA - secondB) % 3600;
+}
+
+function aBetweenBandC(varA, varB, varC)
+{
+    var a = varB > varC;
+    var b = varA > varB;
+    var c = varA <= varC;
+    return (a&&b)||(b&&c)||(a&&c);
+}
+
 function setupSpawnpointMarker (item) {
   var circleCenter = new google.maps.LatLng(item['latitude'], item['longitude'])
 
   var marker = new google.maps.Circle({
     map: map,
-    clickable: false,
+    clickable: true,
     center: circleCenter,
     radius: 5, // metres
-    fillColor: 'blue',
+    fillColor: getSpawnPointColor(item['minute'],item['second']),
     strokeWeight: 1
   })
 
+  marker.infoWindow = new google.maps.InfoWindow({
+    content: spawnPointLabel(item['spawnpoint_id'],
+        item['minute'],item['second'],
+        item['latitude'], item['longitude']),
+    disableAutoPan: false,
+    position: {
+      lat: item['latitude'],
+      lng: item['longitude']
+    }
+  })
+
+
+  addListeners(marker)
   return marker
+
 }
 
 function clearSelection () {
@@ -1655,6 +1730,9 @@ function processSpawnpoints (i, item) {
 
   if (id in mapData.spawnpoints) {
     // In the future: maybe show how long till spawnpoint activates?
+    mapData.scanned[id].marker.setOptions({
+      fillColor: getSpawnPointColor(item['minute'],item['second'])
+    })
   } else { // add marker to map and item to dict
     if (item.marker) {
       item.marker.setMap(null)
@@ -1696,6 +1774,21 @@ function redrawPokemon (pokemonList) {
     }
   })
 }
+function redrawSpawnPoint () {
+    $.each(mapData.spawnpoints, function (key, value) {
+        var item = mapData.spawnpoints[key]
+        var marker = item.marker
+        marker.setMap(null)
+        var color = getSpawnPointColor(item['minute'],item['second']);
+        if (marker.fillColor!=color)
+        {
+            console.info(key)
+            marker.fillColor = color
+            mapData.spawnpoints[key].marker = marker;
+        }
+
+    })
+}
 
 var updateLabelDiffTime = function () {
   $('.label-countdown').each(function (index, element) {
@@ -1723,6 +1816,7 @@ var updateLabelDiffTime = function () {
 
     $(element).text(timestring)
   })
+
 }
 
 function getPointDistance (pointA, pointB) {
