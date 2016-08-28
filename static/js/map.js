@@ -1730,9 +1730,15 @@ function processSpawnpoints (i, item) {
 
   if (id in mapData.spawnpoints) {
     // In the future: maybe show how long till spawnpoint activates?
-    mapData.scanned[id].marker.setOptions({
+    marker = mapData.scanned[id].marker;
+    if(marker)
+    marker.setOptions({
       fillColor: getSpawnPointColor(item['minute'],item['second'])
     })
+    else{
+      item.marker = setupSpawnpointMarker(item)
+      mapData.spawnpoints[id] = item
+    }
   } else { // add marker to map and item to dict
     if (item.marker) {
       item.marker.setMap(null)
